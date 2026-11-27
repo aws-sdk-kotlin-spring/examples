@@ -18,6 +18,18 @@ version = "0.0.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    // awskotlin snapshots published by CI; GitHub Packages requires auth even for public packages.
+    // Locally set gpr.user/gpr.key (a PAT with read:packages) in ~/.gradle/gradle.properties;
+    // CI uses GITHUB_ACTOR/GITHUB_TOKEN.
+    maven {
+        name = "github-awskotlin-spring"
+        url = uri("https://maven.pkg.github.com/aws-sdk-kotlin-spring/*")
+        mavenContent { snapshotsOnly() }
+        credentials {
+            username = (findProperty("gpr.user") as String?) ?: System.getenv("GITHUB_ACTOR")
+            password = (findProperty("gpr.key") as String?) ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
 }
 
 dependencies {
