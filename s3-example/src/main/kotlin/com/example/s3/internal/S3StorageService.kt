@@ -1,7 +1,5 @@
 package com.example.s3.internal
 
-import aws.sdk.kotlin.services.s3.S3Client
-import aws.sdk.kotlin.services.s3.createBucket
 import aws.smithy.kotlin.runtime.content.ByteStream
 import com.example.s3.StorageService
 import com.example.s3.StorageServiceException
@@ -18,27 +16,25 @@ import reactor.core.publisher.Flux
 @Service
 class S3StorageService(
     private val template: S3Template,
-    private val client: S3Client,
     @Value("\${example.s3.bucket-name:uploaded-files}") private val bucketName: String,
 ) : StorageService {
     override suspend fun store(resourceKey: String, data: Flux<DataBuffer>) {
         try {
-            // The template has no bucket creation, so use the starter-provided client for it.
             if (!template.bucket(bucketName).exists()) {
-                client.createBucket { bucket = bucketName }
+                template.bucket(bucketName).create()
             }
-            val contentType = MediaTypeFactory.getMediaType(resourceKey)
+            val mediaType = MediaTypeFactory.getMediaType(resourceKey)
                 .orElseGet { MediaType.APPLICATION_OCTET_STREAM }
                 .toString()
             template.bucket(bucketName).`object`(resourceKey)
-                .put(ByteStream.fromBytes(data.toByteArray()), contentType = contentType)
+                .put(ByteStream.fromBytes(data.toByteArray())) { contentType = mediaType }
         } catch (e: Exception) {
             throw StorageServiceException(e.message ?: "Failed to upload object $resourceKey")
         }
     }
 
     override suspend fun retrieve(resourceKey: String): Flux<DataBuffer>? = try {
-        template.bucket(bucketName).`object`(resourceKey).get()?.toFluxDataBuffer() ?: Flux.empty()
+        template.bucket(bucketName).`object`(resourceKey).get().bytes()?.toFluxDataBuffer() ?: Flux.empty()
     } catch (e: Exception) {
         // Keep the SDK message (for example "The specified key does not exist") intact.
         throw StorageServiceException(e.message ?: "Failed to download object $resourceKey")

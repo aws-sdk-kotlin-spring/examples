@@ -12,7 +12,7 @@ class NotificationReceiver {
     }
 
     // Without raw message delivery the queue receives the SNS JSON envelope as a String.
-    @SqsListener(FanOutInitializer.QUEUE_NAME)
+    @SqsListener(FanOutConfig.QUEUE_NAME)
     suspend fun onNotification(body: String) {
         val notification = SnsNotificationParser.parse(body)
         log.debug("received notification ${notification.messageId}: ${notification.message}")

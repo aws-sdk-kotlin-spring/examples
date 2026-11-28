@@ -1,7 +1,5 @@
 package com.example.secretsmanager.internal
 
-import aws.sdk.kotlin.services.secretsmanager.SecretsManagerClient
-import aws.sdk.kotlin.services.secretsmanager.model.CreateSecretRequest
 import com.example.secretsmanager.SecretsManagementService
 import com.example.secretsmanager.SecretsManagementServiceException
 import io.github.awskotlin.secretsmanager.SecretsManagerTemplate
@@ -9,27 +7,18 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 @Service
-class AwsSecretsManagementService(
-    private val template: SecretsManagerTemplate,
-    private val client: SecretsManagerClient,
-) : SecretsManagementService {
+class AwsSecretsManagementService(private val template: SecretsManagerTemplate,) : SecretsManagementService {
     companion object {
         private val log = LoggerFactory.getLogger(SecretsManagementService::class.java)
     }
 
     override suspend fun write(secretName: String, secretValue: String, secretDescription: String?): String? {
-        // The template does not expose description/forceOverwriteReplicaSecret,
-        // so keep the raw starter-provided client request for writes.
-        val request = CreateSecretRequest {
-            name = secretName
-            description = secretDescription
-            secretString = secretValue
-            forceOverwriteReplicaSecret = true // override the duplicated secret name
-        }
-
         log.debug("writing secrets: $secretName, $secretValue, $secretDescription")
         val response = try {
-            client.createSecret(request)
+            template.secret(secretName).create(secretValue) {
+                forceOverwriteReplicaSecret = true
+                secretDescription?.let { this.description = it }
+            }
         } catch (e: Exception) {
             log.error("error occurred when writing secrets: ${e.message}")
             throw SecretsManagementServiceException(e.message ?: "Failed to write secrets:")

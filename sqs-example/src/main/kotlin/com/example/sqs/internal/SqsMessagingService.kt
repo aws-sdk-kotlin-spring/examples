@@ -1,7 +1,6 @@
 package com.example.sqs.internal
 
 import aws.sdk.kotlin.services.sqs.SqsClient
-import aws.sdk.kotlin.services.sqs.model.CreateQueueRequest
 import aws.sdk.kotlin.services.sqs.model.GetQueueUrlRequest
 import aws.sdk.kotlin.services.sqs.model.ReceiveMessageRequest
 import com.example.sqs.MessagingService
@@ -35,22 +34,14 @@ class SqsMessagingService(
         log.debug("created queue: $queueNameVal")
     }
 
-    // The template has no queue creation, so keep the raw starter-provided client here.
     override suspend fun createQueue(queueNameVal: String): String {
         return getQueue(queueNameVal) ?: run {
             log.debug("queue $queueNameVal does not exist, create one")
-            val createQueueRequest =
-                CreateQueueRequest {
-                    queueName = queueNameVal
-                }
-
             val createQueueResponse =
-                withContext(Dispatchers.IO) {
-                    try {
-                        sqsClient.createQueue(createQueueRequest)
-                    } catch (e: Exception) {
-                        throw MessagingServiceException(e.message ?: "Failed to create queue: $queueNameVal")
-                    }
+                try {
+                    template.queue(queueNameVal).create()
+                } catch (e: Exception) {
+                    throw MessagingServiceException(e.message ?: "Failed to create queue: $queueNameVal")
                 }
             log.debug("created queue url ${createQueueResponse.queueUrl}")
             return createQueueResponse.queueUrl!!
@@ -78,15 +69,16 @@ class SqsMessagingService(
     override suspend fun send(queueNameVal: String, message: Any) {
         val sendMessageResponse =
             try {
-                template.destination(queueNameVal).send(message, delay = 1.seconds)
+                template.queue(queueNameVal).send(message) { delay = 1.seconds }
             } catch (e: Exception) {
                 throw MessagingServiceException(e.message ?: "Failed to send message")
             }
         log.debug("message ${sendMessageResponse.messageId} is sent out")
     }
 
-    // The template has no batch receive, so keep the raw client request and convert
-    // each body with the starter-provided converter. Messages are not deleted here.
+    // Keep the raw client request for tolerant per-message conversion (skip bodies that fail
+    // to deserialize) and leave messages in flight; the template's receive(...).list() converts
+    // strictly and would throw on the first bad body.
     override suspend fun <T : Any> receive(queueNameVal: String, clazz: Class<out T>): List<T> {
         val getQueueUrl = getQueue(queueNameVal)
 
