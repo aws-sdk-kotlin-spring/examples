@@ -1,135 +1,140 @@
+import com.adarshr.gradle.testlogger.TestLoggerExtension
 import com.adarshr.gradle.testlogger.theme.ThemeType.MOCHA
+import org.gradle.accessors.dm.LibrariesForLibs
 import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
+import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
+import org.jmailen.gradle.kotlinter.KotlinterExtension
 import org.jmailen.gradle.kotlinter.tasks.FormatTask
 import org.jmailen.gradle.kotlinter.tasks.LintTask
+import org.springframework.boot.gradle.dsl.SpringBootExtension
 
 plugins {
-    alias(libs.plugins.springBoot)
-    alias(libs.plugins.dependencyManagement)
-    alias(libs.plugins.kotlinJvm)
-    alias(libs.plugins.kotlinPluginSpring)
-    alias(libs.plugins.kotlinPluginSerialization)
-    alias(libs.plugins.kotlinter)
-    alias(libs.plugins.testLogger)
+    alias(libs.plugins.springBoot) apply false
+    alias(libs.plugins.dependencyManagement) apply false
+    alias(libs.plugins.kotlinJvm) apply false
+    alias(libs.plugins.kotlinPluginSpring) apply false
+    alias(libs.plugins.kotlinPluginSerialization) apply false
+    alias(libs.plugins.kotlinter) apply false
+    alias(libs.plugins.testLogger) apply false
 }
 
-group = "com.example"
-version = "0.0.1-SNAPSHOT"
+subprojects {
+    // The generated `libs` accessor only resolves on the root project; bind the catalog
+    // under another name so nested blocks do not hit the subproject extension lookup.
+    val catalog = rootProject.extensions.getByType<LibrariesForLibs>()
 
-repositories {
-    mavenCentral()
-    // awskotlin snapshots published by CI; GitHub Packages requires auth even for public packages.
-    // Locally set gpr.user/gpr.key (a PAT with read:packages) in ~/.gradle/gradle.properties;
-    // CI uses GITHUB_ACTOR/GITHUB_TOKEN.
-    maven {
-        name = "github-awskotlin-spring"
-        url = uri("https://maven.pkg.github.com/aws-sdk-kotlin-spring/*")
-        mavenContent { snapshotsOnly() }
-        credentials {
-            username = (findProperty("gpr.user") as String?) ?: System.getenv("GITHUB_ACTOR")
-            password = (findProperty("gpr.key") as String?) ?: System.getenv("GITHUB_TOKEN")
+    apply(plugin = "org.springframework.boot")
+    apply(plugin = "io.spring.dependency-management")
+    apply(plugin = "org.jetbrains.kotlin.jvm")
+    apply(plugin = "org.jetbrains.kotlin.plugin.spring")
+    apply(plugin = "org.jmailen.kotlinter")
+    apply(plugin = "com.adarshr.test-logger")
+
+    group = "com.example"
+    version = "0.0.1-SNAPSHOT"
+
+    repositories {
+        // Local awskotlin builds: run `./gradlew publishToMavenLocal` in the awskotlin repo.
+        mavenLocal()
+        mavenCentral()
+        // awskotlin snapshots published by CI; GitHub Packages requires auth even for public packages.
+        // Locally set gpr.user/gpr.key (a PAT with read:packages) in ~/.gradle/gradle.properties;
+        // CI uses GITHUB_ACTOR/GITHUB_TOKEN.
+        maven {
+            name = "github-awskotlin-spring"
+            url = uri("https://maven.pkg.github.com/aws-sdk-kotlin-spring/*")
+            mavenContent { snapshotsOnly() }
+            credentials {
+                username = (findProperty("gpr.user") as String?) ?: System.getenv("GITHUB_ACTOR")
+                password = (findProperty("gpr.key") as String?) ?: System.getenv("GITHUB_TOKEN")
+            }
         }
     }
-}
 
-dependencies {
-    // spring libs
-    implementation(libs.bundles.core)
+    dependencies {
+        "implementation"(catalog.bundles.core)
+        "implementation"(catalog.bundles.kotlinSupport)
+        "implementation"(catalog.bundles.okhttp)
 
-    // kotlin support
-    implementation(libs.bundles.kotlinSupport)
-
-    // awskotlin spring boot starters (S3, Secrets Manager, SQS)
-    val awskotlinVersion = "0.1.0-SNAPSHOT"
-    implementation("io.github.awskotlin:awskotlin-s3-spring-boot-starter:$awskotlinVersion")
-    implementation("io.github.awskotlin:awskotlin-secrets-manager-spring-boot-starter:$awskotlinVersion")
-    implementation("io.github.awskotlin:awskotlin-sqs-spring-boot-starter:$awskotlinVersion")
-
-    // kotlinx converter runtime and @Serializable example payloads
-    implementation(libs.kotlinxSerializationJson)
-
-    // okhttp
-    implementation(libs.bundles.okhttp)
-
-    // test libs
-    testImplementation(libs.bundles.testcore)
-    testImplementation(libs.bundles.testcontainers)
-    testImplementation(libs.bundles.kotest)
-    testImplementation(libs.bundles.mockk)
-    testImplementation(libs.bundles.awaitility)
-    testImplementation(libs.bundles.kotlintest)
-    testRuntimeOnly(libs.junitPlatformLauncher)
-}
-
-kotlin {
-    jvmToolchain(libs.versions.java.get().toInt())
-    compilerOptions {
-        jvmDefault = JvmDefaultMode.NO_COMPATIBILITY
-        progressiveMode.set(true)
-        freeCompilerArgs.addAll(
-            "-Xjsr305=strict",
-        )
-        optIn.addAll(
-            "kotlin.RequiresOptIn",
-            "kotlinx.coroutines.ExperimentalCoroutinesApi",
-        )
+        "testImplementation"(catalog.bundles.testcore)
+        "testImplementation"(catalog.bundles.testcontainers)
+        "testImplementation"(catalog.bundles.kotest)
+        "testImplementation"(catalog.bundles.mockk)
+        "testImplementation"(catalog.bundles.awaitility)
+        "testImplementation"(catalog.bundles.kotlintest)
+        "testRuntimeOnly"(catalog.junitPlatformLauncher)
     }
-}
 
-// ktlint 1.8.0 (applied by kotlinter) requires kotlin-compiler-embeddable 2.2.x.
-// Pin the compiler artifacts for the lint classpath only; compilation itself uses
-// the Kotlin version from the version catalog.
-configurations.named("ktlint") {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "org.jetbrains.kotlin" &&
-            requested.name in
-            setOf(
-                "kotlin-compiler-embeddable",
-                "kotlin-daemon-embeddable",
-                "kotlin-script-runtime",
-                "kotlin-build-tools-api",
+    configure<KotlinJvmProjectExtension> {
+        jvmToolchain(catalog.versions.java.get().toInt())
+        compilerOptions {
+            jvmDefault = JvmDefaultMode.NO_COMPATIBILITY
+            progressiveMode.set(true)
+            freeCompilerArgs.addAll(
+                "-Xjsr305=strict",
             )
-        ) {
-            useVersion("2.2.21")
-            because("ktlint 1.8.0 is not compatible with kotlin-compiler-embeddable 2.4.x")
+            optIn.addAll(
+                "kotlin.RequiresOptIn",
+                "kotlinx.coroutines.ExperimentalCoroutinesApi",
+            )
         }
     }
-}
 
-tasks.withType<Test> {
-    useJUnitPlatform()
-    minHeapSize = "128m"
-    maxHeapSize = "2048m"
-}
+    // ktlint 1.8.0 (applied by kotlinter) requires kotlin-compiler-embeddable 2.2.x.
+    // Pin the compiler artifacts for the lint classpath only; compilation itself uses
+    // the Kotlin version from the version catalog.
+    configurations.named("ktlint") {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "org.jetbrains.kotlin" &&
+                requested.name in
+                setOf(
+                    "kotlin-compiler-embeddable",
+                    "kotlin-daemon-embeddable",
+                    "kotlin-script-runtime",
+                    "kotlin-build-tools-api",
+                )
+            ) {
+                useVersion("2.2.21")
+                because("ktlint 1.8.0 is not compatible with kotlin-compiler-embeddable 2.4.x")
+            }
+        }
+    }
 
-tasks.withType<LintTask> {
-    exclude { it.file.path.contains("build/generated") }
-}
+    tasks.withType<Test> {
+        useJUnitPlatform()
+        minHeapSize = "128m"
+        maxHeapSize = "2048m"
+    }
 
-tasks.withType<FormatTask> {
-    exclude { it.file.path.contains("build/generated") }
-}
+    tasks.withType<LintTask> {
+        exclude { it.file.path.contains("build/generated") }
+    }
 
-kotlinter {
-    ignoreLintFailures = false
-    reporters = arrayOf("checkstyle", "plain")
-}
+    tasks.withType<FormatTask> {
+        exclude { it.file.path.contains("build/generated") }
+    }
 
-testlogger {
-    theme = MOCHA
-    showExceptions = true
-    showStackTraces = true
-    showFullStackTraces = false
-    showCauses = true
-    slowThreshold = 2000
-    showSummary = true
-    showPassed = true
-    showSkipped = true
-    showFailed = true
-    showStandardStreams = false
-    logLevel = LogLevel.LIFECYCLE
-}
+    configure<KotlinterExtension> {
+        ignoreLintFailures = false
+        reporters = arrayOf("checkstyle", "plain")
+    }
 
-springBoot {
-    buildInfo()
+    configure<TestLoggerExtension> {
+        theme = MOCHA
+        showExceptions = true
+        showStackTraces = true
+        showFullStackTraces = false
+        showCauses = true
+        slowThreshold = 2000
+        showSummary = true
+        showPassed = true
+        showSkipped = true
+        showFailed = true
+        showStandardStreams = false
+        logLevel = LogLevel.LIFECYCLE
+    }
+
+    configure<SpringBootExtension> {
+        buildInfo()
+    }
 }

@@ -1,0 +1,13 @@
+package com.example.sns
+
+import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan
+import org.springframework.boot.runApplication
+
+@SpringBootApplication
+@ConfigurationPropertiesScan
+class SnsExampleApplication
+
+fun main(args: Array<String>) {
+    runApplication<SnsExampleApplication>(*args)
+}

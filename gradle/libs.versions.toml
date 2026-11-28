@@ -13,6 +13,7 @@ springmockk = "5.0.1"
 awaitility = "4.3.0"
 okhttp = "5.5.1"
 awsSdkKotlin = "1.9.45"
+awskotlinSpring = "0.1.0-SNAPSHOT"
 junit = "6.1.3"
 
 [libraries]
@@ -42,6 +43,12 @@ awsSdkKotlinS3 = { module = "aws.sdk.kotlin:s3", version.ref = "awsSdkKotlin" }
 awsSdkKotlinSecretManager = { module = "aws.sdk.kotlin:secretsmanager", version.ref = "awsSdkKotlin" }
 awsSqs = { module = "aws.sdk.kotlin:sqs", version.ref = "awsSdkKotlin" }
 awsSdkKotlinSns = { module = "aws.sdk.kotlin:sns", version.ref = "awsSdkKotlin" }
+
+# awskotlin Spring Boot starters
+awskotlinS3Starter = { module = "io.github.awskotlin:awskotlin-s3-spring-boot-starter", version.ref = "awskotlinSpring" }
+awskotlinSqsStarter = { module = "io.github.awskotlin:awskotlin-sqs-spring-boot-starter", version.ref = "awskotlinSpring" }
+awskotlinSnsStarter = { module = "io.github.awskotlin:awskotlin-sns-spring-boot-starter", version.ref = "awskotlinSpring" }
+awskotlinSecretsManagerStarter = { module = "io.github.awskotlin:awskotlin-secrets-manager-spring-boot-starter", version.ref = "awskotlinSpring" }
 
 # Spring Boot auto-configuration support
 springContext = { module = "org.springframework:spring-context" }
