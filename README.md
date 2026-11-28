@@ -1,4 +1,4 @@
-# awskotlin Examples
+# Examples
 
 [![Build](https://github.com/aws-sdk-kotlin-spring/examples/actions/workflows/build.yml/badge.svg)](https://github.com/aws-sdk-kotlin-spring/examples/actions/workflows/build.yml)
 
